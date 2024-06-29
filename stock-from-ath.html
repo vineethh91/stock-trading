@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Information App</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div x-data="stockApp()" class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-6 text-gray-800">Stock Information App</h1>
+        <form id="stockForm" class="mb-6 flex flex-wrap gap-4" @submit.prevent="handleSubmit">
+            <select id="tickerDropdown" x-model="selectedTicker" class="flex-grow p-2 border rounded">
+                <template x-for="ticker in tickers">
+                    <option :value="ticker" x-text="ticker"></option>
+                </template>
+            </select>
+            <select id="timeRangeDropdown" x-model="selectedTimeRange" class="flex-grow p-2 border rounded">
+                <option value="1M">1 Month</option>
+                <option value="3M">3 Months</option>
+                <option value="6M">6 Months</option>
+                <option value="1Y">1 Year</option>
+                <option value="2Y">2 Years</option>
+                <option value="3Y">3 Years</option>
+                <option value="5Y">5 Years</option>
+            </select>
+            <button type="button" @click="editTickers" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Edit Tickers</button>
+            <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Submit</button>
+        </form>
+        
+        <div id="priceChartContainer" class="mb-6 bg-white p-4 rounded shadow">
+            <canvas id="priceChart"></canvas>
+        </div>
+        <div id="percentChartContainer" class="mb-6 bg-white p-4 rounded shadow">
+            <canvas id="percentChart"></canvas>
+        </div>
+        <button id="resetZoom" @click="resetZoom" class="mb-6 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Reset Zoom</button>
+
+        <div x-show="stockData.length > 0" class="bg-white rounded shadow">
+            <div class="p-4 border-b flex justify-between items-center cursor-pointer" @click="toggleTable">
+                <h2 class="text-xl font-semibold">Stock Data Table</h2>
+                <span x-text="tableVisible ? '▲' : '▼'" class="text-xl"></span>
+            </div>
+            <div x-show="tableVisible" x-transition class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="p-2 text-left">Date</th>
+                            <th class="p-2 text-left">Close Price</th>
+                            <th class="p-2 text-left">All-Time High</th>
+                            <th class="p-2 text-left">% Difference</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="row in sortedStockData">
+                            <tr class="border-t">
+                                <td class="p-2" x-text="row.date"></td>
+                                <td class="p-2" x-text="'$' + row.closePrice.toFixed(2)"></td>
+                                <td class="p-2" x-text="'$' + row.allTimeHigh.toFixed(2)"></td>
+                                <td class="p-2" x-text="row.percentDifference.toFixed(2) + '%'"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function stockApp() {
+            return {
+                apiKey: 'YOUR_POLYGON_API_KEY', // Replace with your Polygon.io API key
+                tickers: ['AAPL', 'GOOGL', 'MSFT', 'AMZN','CMG','AMD','NVDA', 'SPY', 'QQQ', 'META', 'NVO', 'LLY', 'TSLA', 'SMCI', 'COST', 'RDDT', 'ARM', 'CAVA', 'HIMS', 'ANF'],
+                selectedTicker: 'AAPL',
+                selectedTimeRange: '1M',
+                stockData: [],
+                priceChart: null,
+                percentChart: null,
+                tableVisible: false,
+
+                get sortedStockData() {
+                    return [...this.stockData].sort((a, b) => new Date(b.date) - new Date(a.date));
+                },
+
+                async init() {
+                    this.handleSubmit();
+                },
+
+                toggleTable() {
+                    this.tableVisible = !this.tableVisible;
+                },
+
+                editTickers() {
+                    const newTickers = prompt('Enter tickers separated by commas:', this.tickers.join(','));
+                    if (newTickers) {
+                        this.tickers = newTickers.split(',').map(t => t.trim().toUpperCase());
+                    }
+                },
+
+                async fetchStockData() {
+                    const today = new Date();
+                    let fromDate = new Date(today);
+
+                    switch (this.selectedTimeRange) {
+                        case '1M': fromDate.setMonth(today.getMonth() - 1); break;
+                        case '3M': fromDate.setMonth(today.getMonth() - 3); break;
+                        case '6M': fromDate.setMonth(today.getMonth() - 6); break;
+                        case '1Y': fromDate.setFullYear(today.getFullYear() - 1); break;
+                        case '2Y': fromDate.setFullYear(today.getFullYear() - 2); break;
+                        case '3Y': fromDate.setFullYear(today.getFullYear() - 3); break;
+                        case '5Y': fromDate.setFullYear(today.getFullYear() - 5); break;
+                    }
+
+                    const fromDateStr = fromDate.toISOString().split('T')[0];
+                    const toDateStr = today.toISOString().split('T')[0];
+
+                    const response = await fetch(`https://api.polygon.io/v2/aggs/ticker/${this.selectedTicker}/range/1/day/${fromDateStr}/${toDateStr}?apiKey=${this.apiKey}`);
+                    const data = await response.json();
+                    return data.results;
+                },
+
+                processStockData(data) {
+                    const processedData = [];
+                    let allTimeHigh = 0;
+
+                    data.forEach((item) => {
+                        const date = new Date(item.t).toISOString().split('T')[0];
+                        const closePrice = item.c;
+                        allTimeHigh = Math.max(allTimeHigh, closePrice);
+                        const percentDifference = ((closePrice - allTimeHigh) / allTimeHigh) * 100;
+
+                        processedData.push({
+                            date,
+                            closePrice,
+                            allTimeHigh,
+                            percentDifference
+                        });
+                    });
+
+                    return processedData;
+                },
+
+                findSupportResistanceLevels(data) {
+                    const prices = data.map(d => d.closePrice);
+                    const levels = [];
+                    const threshold = 0.02; // 2% threshold for level identification
+
+                    for (let i = 1; i < prices.length - 1; i++) {
+                        if (
+                            (prices[i] <= prices[i-1] && prices[i] <= prices[i+1]) ||
+                            (prices[i] >= prices[i-1] && prices[i] >= prices[i+1])
+                        ) {
+                            const level = prices[i];
+                            if (!levels.some(l => Math.abs(l - level) / level < threshold)) {
+                                levels.push(level);
+                            }
+                        }
+                    }
+
+                    return levels.sort((a, b) => a - b);
+                },
+
+                displayCharts() {
+                    const priceCtx = document.getElementById('priceChart').getContext('2d');
+                    const percentCtx = document.getElementById('percentChart').getContext('2d');
+
+                    if (this.priceChart) {
+                        this.priceChart.destroy();
+                    }
+                    if (this.percentChart) {
+                        this.percentChart.destroy();
+                    }
+
+                    const supportResistanceLevels = this.findSupportResistanceLevels(this.stockData);
+
+                    this.priceChart = new Chart(priceCtx, {
+                        type: 'line',
+                        data: {
+                            labels: this.stockData.map(row => row.date),
+                            datasets: [{
+                                label: 'Stock Price',
+                                data: this.stockData.map(row => row.closePrice),
+                                borderColor: 'rgb(59, 130, 246)',
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Date'
+                                    }
+                                },
+                                y: {
+                                    title: {
+                                        display: true,
+                                        text: 'Price ($)'
+                                    }
+                                }
+                            },
+                            plugins: {
+                                zoom: {
+                                    zoom: {
+                                        wheel: {
+                                            enabled: true,
+                                        },
+                                        pinch: {
+                                            enabled: true
+                                        },
+                                        mode: 'x',
+                                    },
+                                    pan: {
+                                        enabled: true,
+                                        mode: 'x',
+                                    },
+                                },
+                                annotation: {
+                                    annotations: supportResistanceLevels.map(level => ({
+                                        type: 'line',
+                                        yMin: level,
+                                        yMax: level,
+                                        borderColor: 'rgba(255, 99, 132, 0.5)',
+                                        borderWidth: 2,
+                                    }))
+                                }
+                            }
+                        }
+                    });
+
+                    this.percentChart = new Chart(percentCtx, {
+                        type: 'line',
+                        data: {
+                            labels: this.stockData.map(row => row.date),
+                            datasets: [{
+                                label: '% Difference from All-Time High',
+                                data: this.stockData.map(row => row.percentDifference),
+                                borderColor: 'rgb(75, 192, 192)',
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Date'
+                                    }
+                                },
+                                y: {
+                                    title: {
+                                        display: true,
+                                        text: '% Difference'
+                                    }
+                                }
+                            },
+                            plugins: {
+                                zoom: {
+                                    zoom: {
+                                        wheel: {
+                                            enabled: true,
+                                        },
+                                        pinch: {
+                                            enabled: true
+                                        },
+                                        mode: 'x',
+                                    },
+                                    pan: {
+                                        enabled: true,
+                                        mode: 'x',
+                                    },
+                                }
+                            }
+                        }
+                    });
+                },
+
+                async handleSubmit() {
+                    const stockData = await this.fetchStockData();
+                    this.stockData = this.processStockData(stockData);
+                    this.displayCharts();
+                },
+
+                resetZoom() {
+                    this.priceChart.resetZoom();
+                    this.percentChart.resetZoom();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
