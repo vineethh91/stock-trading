@@ -9,17 +9,24 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media (max-width: 640px) {
+            .chart-container {
+                height: 300px !important;
+            }
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
     <div x-data="stockApp()" class="container mx-auto px-4 py-8">
         <h1 class="text-3xl font-bold mb-6 text-gray-800">Stock Information App</h1>
-        <form id="stockForm" class="mb-6 flex flex-wrap gap-4" @submit.prevent="handleSubmit">
-            <select id="tickerDropdown" x-model="selectedTicker" class="flex-grow p-2 border rounded">
+        <form id="stockForm" class="mb-6 flex flex-col sm:flex-row gap-4" @submit.prevent="handleSubmit">
+            <select id="tickerDropdown" x-model="selectedTicker" class="w-full sm:w-auto p-2 border rounded">
                 <template x-for="ticker in tickers">
                     <option :value="ticker" x-text="ticker"></option>
                 </template>
             </select>
-            <select id="timeRangeDropdown" x-model="selectedTimeRange" class="flex-grow p-2 border rounded">
+            <select id="timeRangeDropdown" x-model="selectedTimeRange" class="w-full sm:w-auto p-2 border rounded">
                 <option value="1M">1 Month</option>
                 <option value="3M">3 Months</option>
                 <option value="6M">6 Months</option>
@@ -28,17 +35,17 @@
                 <option value="3Y">3 Years</option>
                 <option value="5Y">5 Years</option>
             </select>
-            <button type="button" @click="editTickers" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Edit Tickers</button>
-            <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Submit</button>
+            <button type="button" @click="editTickers" class="w-full sm:w-auto bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Edit Tickers</button>
+            <button type="submit" class="w-full sm:w-auto bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Submit</button>
         </form>
         
-        <div id="priceChartContainer" class="mb-6 bg-white p-4 rounded shadow">
+        <div id="priceChartContainer" class="mb-6 bg-white p-4 rounded shadow chart-container" style="height: 400px;">
             <canvas id="priceChart"></canvas>
         </div>
-        <div id="percentChartContainer" class="mb-6 bg-white p-4 rounded shadow">
+        <div id="percentChartContainer" class="mb-6 bg-white p-4 rounded shadow chart-container" style="height: 400px;">
             <canvas id="percentChart"></canvas>
         </div>
-        <button id="resetZoom" @click="resetZoom" class="mb-6 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Reset Zoom</button>
+        <button id="resetZoom" @click="resetZoom" class="mb-6 w-full sm:w-auto bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Reset Zoom</button>
 
         <div x-show="stockData.length > 0" class="bg-white rounded shadow">
             <div class="p-4 border-b flex justify-between items-center cursor-pointer" @click="toggleTable">
@@ -73,7 +80,7 @@
     <script>
         function stockApp() {
             return {
-                apiKey: 'YOUR_POLYGON_API_KEY', // Replace with your Polygon.io API key
+                apiKey: 'YOUR_POLYGON_KEY', // Replace with your Polygon.io API key
                 tickers: ['AAPL', 'GOOGL', 'MSFT', 'AMZN','CMG','AMD','NVDA', 'SPY', 'QQQ', 'META', 'NVO', 'LLY', 'TSLA', 'SMCI', 'COST', 'RDDT', 'ARM', 'CAVA', 'HIMS', 'ANF'],
                 selectedTicker: 'AAPL',
                 selectedTimeRange: '1M',
@@ -88,6 +95,7 @@
 
                 async init() {
                     this.handleSubmit();
+                    window.addEventListener('resize', this.handleResize.bind(this));
                 },
 
                 toggleTable() {
@@ -177,6 +185,61 @@
 
                     const supportResistanceLevels = this.findSupportResistanceLevels(this.stockData);
 
+                    const commonOptions = {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Date'
+                                },
+                                ticks: {
+                                    maxRotation: 0,
+                                    minRotation: 0,
+                                    autoSkip: true,
+                                    maxTicksLimit: 5
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Price ($)'
+                                }
+                            }
+                        },
+                        plugins: {
+                            zoom: {
+                                zoom: {
+                                    wheel: {
+                                        enabled: true,
+                                    },
+                                    pinch: {
+                                        enabled: true
+                                    },
+                                    mode: 'x',
+                                },
+                                pan: {
+                                    enabled: true,
+                                    mode: 'x',
+                                },
+                            },
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false
+                            }
+                        },
+                        interaction: {
+                            mode: 'nearest',
+                            axis: 'x',
+                            intersect: false
+                        }
+                    };
+
                     this.priceChart = new Chart(priceCtx, {
                         type: 'line',
                         data: {
@@ -189,38 +252,9 @@
                             }]
                         },
                         options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            scales: {
-                                x: {
-                                    title: {
-                                        display: true,
-                                        text: 'Date'
-                                    }
-                                },
-                                y: {
-                                    title: {
-                                        display: true,
-                                        text: 'Price ($)'
-                                    }
-                                }
-                            },
+                            ...commonOptions,
                             plugins: {
-                                zoom: {
-                                    zoom: {
-                                        wheel: {
-                                            enabled: true,
-                                        },
-                                        pinch: {
-                                            enabled: true
-                                        },
-                                        mode: 'x',
-                                    },
-                                    pan: {
-                                        enabled: true,
-                                        mode: 'x',
-                                    },
-                                },
+                                ...commonOptions.plugins,
                                 annotation: {
                                     annotations: supportResistanceLevels.map(level => ({
                                         type: 'line',
@@ -246,37 +280,15 @@
                             }]
                         },
                         options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
+                            ...commonOptions,
                             scales: {
-                                x: {
-                                    title: {
-                                        display: true,
-                                        text: 'Date'
-                                    }
-                                },
+                                ...commonOptions.scales,
                                 y: {
+                                    ...commonOptions.scales.y,
                                     title: {
                                         display: true,
                                         text: '% Difference'
                                     }
-                                }
-                            },
-                            plugins: {
-                                zoom: {
-                                    zoom: {
-                                        wheel: {
-                                            enabled: true,
-                                        },
-                                        pinch: {
-                                            enabled: true
-                                        },
-                                        mode: 'x',
-                                    },
-                                    pan: {
-                                        enabled: true,
-                                        mode: 'x',
-                                    },
                                 }
                             }
                         }
@@ -292,6 +304,13 @@
                 resetZoom() {
                     this.priceChart.resetZoom();
                     this.percentChart.resetZoom();
+                },
+
+                handleResize() {
+                    if (this.priceChart && this.percentChart) {
+                        this.priceChart.resize();
+                        this.percentChart.resize();
+                    }
                 }
             }
         }
