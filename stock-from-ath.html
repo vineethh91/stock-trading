@@ -182,6 +182,9 @@
                 filteredTickers: [],
                 showEditTickers: false,
                 editableTickers: [],
+	      		priceChart: null,
+        	    percentChart: null,
+	            chartError: false,
 
                 handleEnterKeyPress() {
                     if (this.tickerInput.trim() !== '') {
@@ -288,14 +291,23 @@
                     }
                     this.tickers.sort();
                     this.tickerInput = this.selectedTicker;
-                    this.handleSubmit();
+
+                    // Ensure the DOM is fully loaded before initializing charts
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', () => {
+                            this.handleSubmit();
+                        });
+                    } else {
+                        this.handleSubmit();
+                    }
+
                     window.addEventListener('resize', this.handleResize.bind(this));
                 },
 
                 toggleTable() {
                     this.tableVisible = !this.tableVisible;
                 },
-
+                
                 async fetchStockData() {
                     const cacheKey = `${this.selectedTicker}_${this.selectedTimeRange}`;
                     const cachedData = localStorage.getItem(cacheKey);
@@ -388,15 +400,40 @@
                     return processedData;
                 },
 
-                displayCharts() {
-                    const priceCtx = document.getElementById('priceChart').getContext('2d');
-                    const percentCtx = document.getElementById('percentChart').getContext('2d');
-
+                resetChartState() {
                     if (this.priceChart) {
                         this.priceChart.destroy();
+                        this.priceChart = null;
                     }
                     if (this.percentChart) {
                         this.percentChart.destroy();
+                        this.percentChart = null;
+                    }
+                    this.chartError = false;
+
+                    const clearCanvas = (id) => {
+                        const canvas = document.getElementById(id);
+                        if (canvas) {
+                            const ctx = canvas.getContext('2d');
+                            if (ctx) {
+                                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                            }
+                        }
+                    };
+                    clearCanvas('priceChart');
+                    clearCanvas('percentChart');
+                },
+                
+                displayCharts() {
+		            this.resetChartState();
+
+                    const priceCanvas = document.getElementById('priceChart');
+                    const percentCanvas = document.getElementById('percentChart');
+
+                    if (!priceCanvas || !percentCanvas) {
+                        console.error("Cannot find chart canvases");
+                        this.chartError = true;
+                        return;
                     }
 
                     const commonOptions = {
@@ -454,85 +491,110 @@
                         }
                     };
 
-                    this.priceChart = new Chart(priceCtx, {
-                        type: 'line',
-                        data: {
-                            labels: this.stockData.map(row => row.date),
-                            datasets: [{
-                                label: 'Stock Price',
-                                data: this.stockData.map(row => row.closePrice),
-                                borderColor: 'rgb(59, 130, 246)',
-                                tension: 0.1
-                            }]
-                        },
-                        options: {
-                            ...commonOptions,
-                            plugins: {
-                                ...commonOptions.plugins,
-                            }
+                    const createChart = (canvas, label, data, color) => {
+                        if (!canvas || !data || data.length === 0) {
+                            console.error(`Invalid canvas or data for ${label} chart`);
+                            return null;
                         }
-                    });
 
-                    this.percentChart = new Chart(percentCtx, {
-                        type: 'line',
-                        data: {
-                            labels: this.stockData.map(row => row.date),
-                            datasets: [{
-                                label: '% Difference from All-Time High',
-                                data: this.stockData.map(row => row.percentDifference),
-                                borderColor: 'rgb(75, 192, 192)',
-                                tension: 0.1
-                            }]
-                        },
-                        options: {
-                            ...commonOptions,
-                            scales: {
-                                ...commonOptions.scales,
-                                y: {
-                                    ...commonOptions.scales.y,
-                                    title: {
-                                        display: true,
-                                        text: '% Difference'
-                                    }
-                                }
+                        try {
+                            const ctx = canvas.getContext('2d');
+                            if (!ctx) {
+                                throw new Error(`Unable to get 2D context for ${label} chart`);
                             }
+
+                            return new Chart(ctx, {
+                                type: 'line',
+                                data: {
+                                    labels: this.stockData.map(row => row.date),
+                                    datasets: [{
+                                        label: label,
+                                        data: data,
+                                        borderColor: color,
+                                        tension: 0.1,
+                                        pointRadius: 0,
+                                    }]
+                                },
+                                options: commonOptions
+                            });
+                        } catch (error) {
+                            console.error(`Error creating ${label} chart:`, error);
+                            return null;
                         }
-                    });
+                    };
+
+                    try {
+                        if (this.stockData && this.stockData.length > 0) {
+                            this.priceChart = createChart(
+                                priceCanvas,
+                                'Stock Price',
+                                this.stockData.map(row => row.closePrice),
+                                'rgb(59, 130, 246)'
+                            );
+
+                            this.percentChart = createChart(
+                                percentCanvas,
+                                '% Difference from All-Time High',
+                                this.stockData.map(row => row.percentDifference),
+                                'rgb(75, 192, 192)'
+                            );
+
+                            if (!this.priceChart || !this.percentChart) {
+                                throw new Error("Failed to create one or both charts");
+                            }
+                        } else {
+                            throw new Error("No stock data available");
+                        }
+                    } catch (error) {
+                        console.error("Error in displayCharts:", error);
+                        this.chartError = true;
+                        this.resetChartState();
+                    }
                 },
+
 
                 async handleSubmit(clearCache = false) {
                     const inputTicker = this.tickerInput.toUpperCase();
 
-                    // Check if the input ticker is not in the list and add it
                     if (inputTicker && !this.tickers.includes(inputTicker)) {
                         this.tickers.push(inputTicker);
                         this.tickers.sort();
                         console.log(`Added new ticker: ${inputTicker}`);
                     }
 
-                    // Set the selected ticker to the input ticker
                     this.selectedTicker = inputTicker;
                     if (clearCache === true) {
                         console.log("Purging local cache of polygon data...");
                         this.clearCache();
                     }
+
+                    this.resetChartState();
+
                     try {
                         const stockData = await this.fetchStockData();
+                        if (!stockData || stockData.length === 0) {
+                            throw new Error("No data received from API");
+                        }
                         this.stockData = this.processStockData(stockData);
                         this.displayCharts();
                     } catch (error) {
-                        console.error("Error fetching stock data:", error);
-                        alert(`Failed to fetch data for ${this.selectedTicker}. Please try again later.`);
+                        console.error("Error fetching or processing stock data:", error);
+                        alert(`Failed to fetch or process data for ${this.selectedTicker}. Please try again later.`);
+                        this.resetChartState(); // Ensure charts are fully reset on error
+                    }
+                },
+                
+				resetZoom() {
+                    if (this.priceChart && !this.chartError) {
+                        this.priceChart.resetZoom();
+                    }
+                    if (this.percentChart && !this.chartError) {
+                        this.percentChart.resetZoom();
                     }
                 },
 
-                resetZoom() {
-                    this.priceChart.resetZoom();
-                    this.percentChart.resetZoom();
-                },
-
                 handleResize() {
-                    if (this.priceChart && this.percentChart) {
+                    if (this.priceChart && this.percentChart && !this.chartError) {
                         this.priceChart.resize();
                         this.percentChart.resize();
                     }
