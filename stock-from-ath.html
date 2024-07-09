@@ -16,6 +16,16 @@
             }
         }
     </style>
+    <style>
+        .live-label {
+            background-color: #38a169;
+            color: white;
+            font-size: 0.75rem;
+            padding: 2px 4px;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
 	<div x-data="stockApp()" @click.away="menuOpen = false" class="container mx-auto px-4 py-8 relative">
@@ -114,9 +124,12 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <template x-for="row in sortedStockData">
+                        <template x-for="(row, index) in sortedStockData">
                              <tr class="border-t">
-                                <td class="p-2" x-text="row.date"></td>
+                                <td class="p-2">
+                                    <span x-text="row.date"></span>
+                                    <span x-show="index === 0" class="live-label">LAST</span>
+                                </td>
                                 <td class="p-2" x-text="'$' + row.closePrice.toFixed(2)"></td>
                                 <td class="p-2" x-text="'$' + row.allTimeHigh.toFixed(2)"></td>
                                 <td class="p-2" x-text="row.percentDifference.toFixed(2) + '%'"></td>
@@ -134,13 +147,17 @@
                     <label for="apiKey" class="block text-sm font-medium text-gray-700">Polygon API Key</label>
                     <input type="text" id="apiKey" x-model="tempApiKey" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
                 </div>
+                <div class="mb-4">
+                    <label for="finnhubApiKey" class="block text-sm font-medium text-gray-700">Finnhub API Key</label>
+                    <input type="text" id="finnhubApiKey" x-model="tempFinnhubApiKey" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                </div>
                 <div class="flex justify-end">
                     <button @click="saveSettings" class="bg-blue-500 text-white px-4 py-2 rounded mr-2">Save</button>
                     <button @click="closeSettings" class="bg-gray-300 text-gray-700 px-4 py-2 rounded">Cancel</button>
                 </div>
             </div>
         </div>
-        
+
         <div x-show="showEditTickers" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" x-transition>
             <div class="relative top-20 mx-auto p-5 border w-80 shadow-lg rounded-md bg-white">
                 <h3 class="text-lg font-medium text-gray-900 mb-2">Edit Tickers</h3>
@@ -168,6 +185,8 @@
         function stockApp() {
             return {
                 apiKey: 'YOUR_POLYGON_KEY', // Replace with your Polygon.io API key in the UI -> Settings
+                finnhubApiKey: localStorage.getItem('finnhubApiKey') || 'YOUR_DEFAULT_FINNHUB_API_KEY',
+				tempFinnhubApiKey: '',
                 tickers: ['AAPL', 'GOOGL', 'MSFT', 'AMZN','CMG','AMD','NVDA', 'SPY', 'QQQ', 'META', 'NVO', 'LLY', 'TSLA', 'SMCI', 'COST', 'RDDT', 'ARM', 'CAVA', 'HIMS', 'ANF'],
                 selectedTicker: 'AAPL',
                 selectedTimeRange: '1M',
@@ -265,6 +284,7 @@
                 openSettings() {
                     this.showSettings = true;
                     this.tempApiKey = this.apiKey;
+                    this.tempFinnhubApiKey = this.finnhubApiKey;
                     this.menuOpen = false;
                 },
 
@@ -274,10 +294,11 @@
 
                 saveSettings() {
                     this.apiKey = this.tempApiKey;
-                    this.showSettings = false;
-                    // You might want to save this to local storage here
+                    this.finnhubApiKey = this.tempFinnhubApiKey;
                     localStorage.setItem('polygonApiKey', this.apiKey);
-	            console.log("Updated Polygon API Key with user configured key");
+                    localStorage.setItem('finnhubApiKey', this.finnhubApiKey);
+                    this.showSettings = false;
+                    console.log("Updated API Keys");
                 },
 
                 get sortedStockData() {
@@ -344,6 +365,23 @@
                     const data = await response.json();
 
                     if (data.results) {
+                    	try {
+                            // Fetch latest price
+                            const latestPrice = await this.fetchLatestPriceFinnhub(this.selectedTicker);
+
+                            // Append latest price to the historical data
+                            data.results.push({
+                                t: new Date().getTime(),
+                                c: latestPrice,
+                                h: latestPrice,
+                                l: latestPrice,
+                                o: latestPrice,
+                                v: 0 // Volume information not available
+                            });
+                        } catch (error) {
+                            console.error('Failed to fetch latest price from FinnHub:', error);
+	                        // throw new Error(`No latest price data available for ${this.selectedTicker}`);
+                        }
                         const midnight = new Date();
                         midnight.setHours(24, 0, 0, 0);
                         localStorage.setItem(cacheKey, JSON.stringify({
@@ -355,6 +393,22 @@
                     } else {
                         console.error(`No results found for ${cacheKey}`);
                         throw new Error(`No data available for ${this.selectedTicker}`);
+                    }
+                },
+              
+                async fetchLatestPriceFinnhub(ticker) {
+				    const url = `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${this.finnhubApiKey}`;
+
+                    try {
+                        const response = await fetch(url);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const data = await response.json();
+                        return data.c; // Current price
+                    } catch (error) {
+                        console.error('Error fetching stock data from Finnhub:', error);
+                        throw error;
                     }
                 },
 
