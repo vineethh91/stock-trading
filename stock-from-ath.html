@@ -50,8 +50,9 @@
                 </button>
             </div>
             <div class="p-4">
-                <a href="#" @click="openSettings" class="block py-2 text-gray-700 hover:bg-gray-100">Settings</a>
-    			<a href="#" @click="editTickers" class="block py-2 text-gray-700 hover:bg-gray-100">Edit Tickers</a>
+                <a href="#" @click="openInstructions" class="block py-2 text-gray-700 hover:bg-gray-100">Instructions</a>
+		<a href="#" @click="openSettings" class="block py-2 text-gray-700 hover:bg-gray-100">Settings</a>
+                <a href="#" @click="editTickers" class="block py-2 text-gray-700 hover:bg-gray-100">Edit Tickers</a>
                 <a href="#" @click="refreshData" class="block py-2 text-gray-700 hover:bg-gray-100">Purge cache</a>
             </div>
         </div>
@@ -179,6 +180,22 @@
                 </div>
             </div>
         </div>
+        
+        <div x-show="showInstructions" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" x-transition>
+            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Instructions</h3>
+                <ol class="list-decimal list-inside space-y-2">
+                    <li>Create an account on <a href="https://polygon.io" target="_blank" class="text-blue-600 hover:underline">polygon.io</a> and retrieve the free API key.</li>
+                    <li>Create an account on <a href="https://finnhub.io" target="_blank" class="text-blue-600 hover:underline">finnhub.io</a> and retrieve the free API key.</li>
+                </ol>
+                <div class="mt-4">
+                    <p class="text-sm text-gray-600">Once you have both API keys, enter them in the Settings menu to use this application.</p>
+                </div>
+                <div class="flex justify-end mt-4">
+                    <button @click="closeInstructions" class="bg-blue-500 text-white px-4 py-2 rounded">Close</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -204,6 +221,16 @@
 	      		priceChart: null,
         	    percentChart: null,
 	            chartError: false,
+		        showInstructions: false,
+
+                openInstructions() {
+                    this.showInstructions = true;
+                    this.menuOpen = false;
+                },
+
+                closeInstructions() {
+                    this.showInstructions = false;
+                },
 
                 handleEnterKeyPress() {
                     if (this.tickerInput.trim() !== '') {
