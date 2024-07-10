@@ -26,6 +26,14 @@
             margin-left: 8px;
         }
     </style>
+    <style>
+        .percent-positive {
+            color: green;
+        }
+        .percent-negative {
+            color: red;
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
 	<div x-data="stockApp()" @click.away="menuOpen = false" class="container mx-auto px-4 py-8 relative">
@@ -133,7 +141,9 @@
                                 </td>
                                 <td class="p-2" x-text="'$' + row.closePrice.toFixed(2)"></td>
                                 <td class="p-2" x-text="'$' + row.allTimeHigh.toFixed(2)"></td>
-                                <td class="p-2" x-text="row.percentDifference.toFixed(2) + '%'"></td>
+                                <td class="p-2" :class="row.percentDifference >= 0 ? 'percent-positive' : 'percent-negative'">
+                                    <span x-text="row.percentDifference.toFixed(2) + '%'"></span>
+                                </td>
                             </tr>
                         </template>
                     </tbody>
@@ -463,12 +473,25 @@
                 processStockData(data) {
                     const processedData = [];
                     let allTimeHigh = 0;
+                    let previousAllTimeHigh = 0;
 
                     data.forEach((item) => {
                         const date = new Date(item.t).toISOString().split('T')[0];
                         const closePrice = item.c;
-                        allTimeHigh = Math.max(allTimeHigh, closePrice);
-                        const percentDifference = ((closePrice - allTimeHigh) / allTimeHigh) * 100;
+                        
+                        if (closePrice > allTimeHigh) {
+                            previousAllTimeHigh = allTimeHigh;
+                            allTimeHigh = closePrice;
+                        }
+                        
+                        let percentDifference;
+                        if (closePrice === allTimeHigh && previousAllTimeHigh !== 0) {
+                            // New all-time high, calculate difference from previous ATH
+                            percentDifference = ((closePrice - previousAllTimeHigh) / previousAllTimeHigh) * 100;
+                        } else {
+                            // Not a new ATH, calculate difference from current ATH
+                            percentDifference = ((closePrice - allTimeHigh) / allTimeHigh) * 100;
+                        }
 
                         processedData.push({
                             date,
@@ -506,7 +529,7 @@
                 },
                 
                 displayCharts() {
-		            this.resetChartState();
+                    this.resetChartState();
 
                     const priceCanvas = document.getElementById('priceChart');
                     const percentCanvas = document.getElementById('percentChart');
@@ -572,7 +595,7 @@
                         }
                     };
 
-                    const createChart = (canvas, label, data, color) => {
+                    const createChart = (canvas, label, data, color, isPercentChart = false) => {
                         if (!canvas || !data || data.length === 0) {
                             console.error(`Invalid canvas or data for ${label} chart`);
                             return null;
@@ -582,6 +605,32 @@
                             const ctx = canvas.getContext('2d');
                             if (!ctx) {
                                 throw new Error(`Unable to get 2D context for ${label} chart`);
+                            }
+
+                            const chartOptions = {...commonOptions};
+                            
+                            if (isPercentChart) {
+                                chartOptions.scales.y = {
+                                    ...chartOptions.scales.y,
+                                    title: {
+                                        display: true,
+                                        text: '% Difference'
+                                    },
+                                    grid: {
+                                        color: (context) => {
+                                            if (context.tick.value === 0) {
+                                                return 'rgba(0, 0, 0, 0.5)';
+                                            }
+                                            return 'rgba(0, 0, 0, 0.1)';
+                                        },
+                                        lineWidth: (context) => {
+                                            if (context.tick.value === 0) {
+                                                return 2;
+                                            }
+                                            return 1;
+                                        }
+                                    }
+                                };
                             }
 
                             return new Chart(ctx, {
@@ -596,7 +645,7 @@
                                         pointRadius: 0,
                                     }]
                                 },
-                                options: commonOptions
+                                options: chartOptions
                             });
                         } catch (error) {
                             console.error(`Error creating ${label} chart:`, error);
@@ -617,7 +666,8 @@
                                 percentCanvas,
                                 '% Difference from All-Time High',
                                 this.stockData.map(row => row.percentDifference),
-                                'rgb(75, 192, 192)'
+                                'rgb(75, 192, 192)',
+                                true  // This flag indicates it's the percent chart
                             );
 
                             if (!this.priceChart || !this.percentChart) {
