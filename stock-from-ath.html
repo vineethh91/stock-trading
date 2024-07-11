@@ -426,6 +426,11 @@
                 },
               
                 async fetchLatestPriceFinnhub(ticker) {
+                	if(!this.checkApiKeys()) {
+                        alert('Please set your API keys in the settings, refer to Instructions in the Menu.');
+						return null;
+                    }
+                    
 				    const url = `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${this.finnhubApiKey}`;
 
                     try {
@@ -729,7 +734,10 @@
                       
                     if (!polygonApiKey || !finnhubApiKey) {
                         this.showInstructions = true;
+                        return false;
                     }
+                    
+                    return true;
                 },
 
                 closeInstructions() {
