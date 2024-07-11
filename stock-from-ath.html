@@ -36,7 +36,7 @@
     </style>
 </head>
 <body class="bg-gray-100">
-	<div x-data="stockApp()" @click.away="menuOpen = false" class="container mx-auto px-4 py-8 relative">
+    <div x-data="stockApp()" @click.away="menuOpen = false" class="container mx-auto px-4 py-8 relative">
         <div class="flex items-center mb-6">
             <button @click="toggleMenu" class="p-2 mr-4">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -59,7 +59,7 @@
             </div>
             <div class="p-4">
                 <a href="#" @click="openInstructions" class="block py-2 text-gray-700 hover:bg-gray-100">Instructions</a>
-		<a href="#" @click="openSettings" class="block py-2 text-gray-700 hover:bg-gray-100">Settings</a>
+        <a href="#" @click="openSettings" class="block py-2 text-gray-700 hover:bg-gray-100">Settings</a>
                 <a href="#" @click="editTickers" class="block py-2 text-gray-700 hover:bg-gray-100">Edit Tickers</a>
                 <a href="#" @click="refreshData" class="block py-2 text-gray-700 hover:bg-gray-100">Purge cache</a>
             </div>
@@ -139,7 +139,15 @@
                                     <span x-text="row.date"></span>
                                     <span x-show="index === 0" class="live-label">LAST</span>
                                 </td>
-                                <td class="p-2" x-text="'$' + row.closePrice.toFixed(2)"></td>
+                                <td class="py-2 px-4 border-b">
+                                    <span x-text="'$' + row.closePrice.toFixed(2)"></span>
+                                    <!-- Add refresh icon next to the price -->
+                                    <button x-show="index === 0" @click.stop="refreshLatestPrice()" class="ml-2 text-blue-500 hover:text-blue-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </td>
                                 <td class="p-2" x-text="'$' + row.allTimeHigh.toFixed(2)"></td>
                                 <td class="p-2" :class="row.percentDifference >= 0 ? 'percent-positive' : 'percent-negative'">
                                     <span x-text="row.percentDifference.toFixed(2) + '%'"></span>
@@ -213,7 +221,7 @@
             return {
                 apiKey: 'YOUR_POLYGON_KEY', // Replace with your Polygon.io API key in the UI -> Settings
                 finnhubApiKey: localStorage.getItem('finnhubApiKey') || 'YOUR_DEFAULT_FINNHUB_API_KEY',
-				tempFinnhubApiKey: '',
+                tempFinnhubApiKey: '',
                 tickers: ['AAPL', 'GOOGL', 'MSFT', 'AMZN','CMG','AMD','NVDA', 'SPY', 'QQQ', 'META', 'NVO', 'LLY', 'TSLA', 'SMCI', 'COST', 'RDDT', 'ARM', 'CAVA', 'HIMS', 'ANF'],
                 selectedTicker: 'AAPL',
                 selectedTimeRange: '1M',
@@ -228,10 +236,10 @@
                 filteredTickers: [],
                 showEditTickers: false,
                 editableTickers: [],
-	      		priceChart: null,
-        	    percentChart: null,
-	            chartError: false,
-		        showInstructions: false,
+                priceChart: null,
+                percentChart: null,
+                chartError: false,
+                showInstructions: false,
 
                 openInstructions() {
                     this.showInstructions = true;
@@ -269,7 +277,7 @@
                 filterTickers() {
                     const input = this.tickerInput.toUpperCase();
                     this.filteredTickers = this.tickers.filter(ticker => 
-                        ticker.startsWith(input)
+                    ticker.startsWith(input)
                     );
                 },
 
@@ -394,7 +402,7 @@
                     const data = await response.json();
 
                     if (data.results) {
-                    	try {
+                        try {
                             // Fetch latest price
                             const latestPrice = await this.fetchLatestPriceFinnhub(this.selectedTicker);
 
@@ -409,7 +417,7 @@
                             });
                         } catch (error) {
                             console.error('Failed to fetch latest price from FinnHub:', error);
-	                        // throw new Error(`No latest price data available for ${this.selectedTicker}`);
+                            // throw new Error(`No latest price data available for ${this.selectedTicker}`);
                         }
                         const midnight = new Date();
                         midnight.setHours(24, 0, 0, 0);
@@ -426,12 +434,12 @@
                 },
               
                 async fetchLatestPriceFinnhub(ticker) {
-                	if(!this.checkApiKeys()) {
+                    if(!this.checkApiKeys()) {
                         alert('Please set your API keys in the settings, refer to Instructions in the Menu.');
-						return null;
+                        return null;
                     }
                     
-				    const url = `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${this.finnhubApiKey}`;
+                    const url = `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${this.finnhubApiKey}`;
 
                     try {
                         const response = await fetch(url);
@@ -439,6 +447,7 @@
                             throw new Error(`HTTP error! status: ${response.status}`);
                         }
                         const data = await response.json();
+                        console.log(`Fetched latest price for ${this.selectedTicker} with price ${data.c}`);
                         return data.c; // Current price
                     } catch (error) {
                         console.error('Error fetching stock data from Finnhub:', error);
@@ -712,7 +721,7 @@
                     }
                 },
                 
-				resetZoom() {
+                resetZoom() {
                     if (this.priceChart && !this.chartError) {
                         this.priceChart.resetZoom();
                     }
@@ -728,6 +737,42 @@
                     }
                 },
                 
+                async refreshLatestPrice() {
+                    if (this.stockData.length === 0) return;
+                    
+                    const ticker = this.selectedTicker;
+                    const latestPrice = await this.fetchLatestPriceFinnhub(ticker);
+                    
+                    if (latestPrice) {
+                        // find index of latest date and then update that with the new price
+                        const mostRecentIndex = this.stockData.reduce((maxIndex, current, currentIndex, arr) => {
+                            return new Date(current.date) > new Date(arr[maxIndex].date) ? currentIndex : maxIndex;
+                        }, 0);
+
+                        this.stockData[mostRecentIndex].closePrice = latestPrice;
+                        this.stockData[mostRecentIndex].percentDifference = ((latestPrice - this.stockData[mostRecentIndex].allTimeHigh) / this.stockData[mostRecentIndex].allTimeHigh) * 100;
+
+                        // Update the cache as well
+                        const cacheKey = `${ticker}_${this.selectedTimeRange}`;
+                        let cachedData = JSON.parse(localStorage.getItem(cacheKey));
+                        if (cachedData) {
+                            const mostRecentCachedDataIndex = cachedData.data.reduce((maxIndex, current, currentIndex, arr) => {
+                                return current.t > arr[maxIndex].t ? currentIndex : maxIndex;
+                            }, 0);
+                            cachedData.data[mostRecentCachedDataIndex].c = latestPrice;
+
+                            localStorage.setItem(cacheKey, JSON.stringify(cachedData));
+                        } else {
+                            console.log("No cached data found while trying to update refreshed latest price");
+                        }
+                        
+                        // Redraw charts
+                        this.displayCharts();
+
+                        console.log("Refreshed latest price data and updated table/charts/cache...");
+                    }
+                },
+
                 checkApiKeys() {
                     const polygonApiKey = localStorage.getItem('polygonApiKey');
                     const finnhubApiKey = localStorage.getItem('finnhubApiKey');
