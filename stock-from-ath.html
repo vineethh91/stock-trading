@@ -70,7 +70,7 @@
                     type="text"
                     x-model="tickerInput"
                     @input="filterTickers"
-                    @keydown.enter.prevent="handleEnterKeyPress"
+                    @keydown.enter.prevent
                     class="w-full p-2 border rounded pr-10"
                     placeholder="Search or enter ticker"
                 >
@@ -241,13 +241,6 @@
                 closeInstructions() {
                     this.showInstructions = false;
                 },
-
-                handleEnterKeyPress() {
-                    if (this.tickerInput.trim() !== '') {
-                        this.selectTicker(this.tickerInput);
-                        this.handleSubmit();
-                    }
-                },
                 
                 editTickers() {
                     this.editableTickers = [...this.tickers];
@@ -299,9 +292,6 @@
 
                     this.filteredTickers = [];
                     this.menuOpen = false;
-                    
-                    // Trigger handleSubmit
-				    this.handleSubmit();
                 },
 
                 addNewTicker() {
@@ -343,6 +333,8 @@
                 },
 
                 async init() {
+                    this.checkApiKeys();
+
                     const savedApiKey = localStorage.getItem('polygonApiKey');
                     if (savedApiKey) {
                         this.apiKey = savedApiKey;
@@ -729,6 +721,19 @@
                         this.priceChart.resize();
                         this.percentChart.resize();
                     }
+                },
+                
+                checkApiKeys() {
+                    const polygonApiKey = localStorage.getItem('polygonApiKey');
+                    const finnhubApiKey = localStorage.getItem('finnhubApiKey');
+                      
+                    if (!polygonApiKey || !finnhubApiKey) {
+                        this.showInstructions = true;
+                    }
+                },
+
+                closeInstructions() {
+                    this.showInstructions = false;
                 }
             }
         }
