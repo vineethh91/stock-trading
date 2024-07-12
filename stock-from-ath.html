@@ -54,6 +54,16 @@
             border-radius: 4px;
             z-index: 1000;
         }
+        @media (max-width: 640px) {
+            .mobile-date {
+                font-size: 0.75rem;
+                white-space: nowrap;
+            }
+            .mobile-last {
+                display: block;
+                font-size: 0.7rem;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -156,18 +166,21 @@
                     <tbody>
                         <template x-for="(row, index) in sortedStockData">
                              <tr class="border-t">
-                                <td class="p-2">
-                                    <span x-text="row.date"></span>
-                                    <span x-show="index === 0" class="live-label">LAST</span>
+                                <td class="py-2 px-4 border-b">
+                                    <div class="flex flex-col sm:flex-row sm:items-center">
+                                        <span class="mobile-date" x-text="row.date"></span>
+                                        <span x-show="index === 0" class="mobile-last bg-green-500 text-white px-1 rounded ml-0 sm:ml-2">LAST</span>
+                                    </div>
                                 </td>
                                 <td class="py-2 px-4 border-b">
-                                    <span x-text="'$' + row.closePrice.toFixed(2)" :class="{ 'blink': index === 0 && latestPriceRefreshUpdated }"></span>
-                                    <!-- Add refresh icon next to the price -->
-                                    <button x-show="index === 0" @click.stop="refreshLatestPrice()" class="ml-2 text-blue-500 hover:text-blue-700">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
-                                        </svg>
-                                    </button>
+                                    <div class="flex items-center">
+                                        <span x-text="'$' + row.closePrice.toFixed(2)" :class="{ 'blink': index === 0 && latestPriceRefreshUpdated }"></span>
+                                        <button x-show="index === 0" @click.stop="refreshLatestPrice()" class="ml-2 text-blue-500 hover:text-blue-700">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </td>
                                 <td class="p-2" x-text="'$' + row.allTimeHigh.toFixed(2)"></td>
                                 <td class="p-2" :class="row.percentDifference >= 0 ? 'percent-positive' : 'percent-negative'">
