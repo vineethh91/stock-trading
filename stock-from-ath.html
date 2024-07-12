@@ -341,14 +341,15 @@
                 },
 
                 async init() {
-                    this.checkApiKeys();
-
-                    const savedApiKey = localStorage.getItem('polygonApiKey');
-                    if (savedApiKey) {
-                        this.apiKey = savedApiKey;
-                    }
                     this.tickers.sort();
                     this.tickerInput = this.selectedTicker;
+
+                    if(!this.checkApiKeys()) {
+                        return null;
+                    }
+
+                    this.apiKey = localStorage.getItem('polygonApiKey');
+                    this.finnhubApiKey = localStorage.getItem('finnhubApiKey');
 
                     // Ensure the DOM is fully loaded before initializing charts
                     if (document.readyState === 'loading') {
@@ -691,6 +692,11 @@
 
 
                 async handleSubmit(clearCache = false) {
+                    if(!this.checkApiKeys()) {
+                        alert('Please set your API keys in the settings, refer to Instructions in the Menu.');
+                        return null;
+                    }
+
                     const inputTicker = this.tickerInput.toUpperCase();
 
                     if (inputTicker && !this.tickers.includes(inputTicker)) {
