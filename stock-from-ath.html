@@ -34,6 +34,27 @@
             color: red;
         }
     </style>
+    <style>
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .blink {
+            animation: blink 1s 2;
+        }
+        .alert {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            z-index: 1000;
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
     <div x-data="stockApp()" @click.away="menuOpen = false" class="container mx-auto px-4 py-8 relative">
@@ -140,7 +161,7 @@
                                     <span x-show="index === 0" class="live-label">LAST</span>
                                 </td>
                                 <td class="py-2 px-4 border-b">
-                                    <span x-text="'$' + row.closePrice.toFixed(2)"></span>
+                                    <span x-text="'$' + row.closePrice.toFixed(2)" :class="{ 'blink': index === 0 && latestPriceRefreshUpdated }"></span>
                                     <!-- Add refresh icon next to the price -->
                                     <button x-show="index === 0" @click.stop="refreshLatestPrice()" class="ml-2 text-blue-500 hover:text-blue-700">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline" viewBox="0 0 20 20" fill="currentColor">
@@ -214,6 +235,11 @@
                 </div>
             </div>
         </div>
+
+        <div x-show="latestPriceRefreshErrorAlert" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform scale-90" x-transition:enter-end="opacity-100 transform scale-100" x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-90" class="alert" @click="showErrorAlert = false">
+            Failed to fetch the latest price. Please try again.
+        </div>
+
     </div>
 
     <script>
@@ -240,6 +266,8 @@
                 percentChart: null,
                 chartError: false,
                 showInstructions: false,
+                latestPriceRefreshUpdated: false,
+                latestPriceRefreshErrorAlert: false,
 
                 openInstructions() {
                     this.showInstructions = true;
@@ -371,10 +399,12 @@
                     const cacheKey = `${this.selectedTicker}_${this.selectedTimeRange}`;
                     const cachedData = localStorage.getItem(cacheKey);
 
+                    console.log(`Request to fetch data for ${cacheKey}...`);
+
                     if (cachedData) {
                         const { data, expiration } = JSON.parse(cachedData);
                         if (new Date().getTime() < expiration) {
-                            console.log(`Using cached data for ${cacheKey}`);
+                            console.log(`Found previously cached data for ${cacheKey}`);
                             return data;
                         } else {
                             console.log(`Cached data for ${cacheKey} has expired`);
@@ -382,7 +412,6 @@
                         }
                     }
 
-                    console.log(`Fetching new data for ${cacheKey}`);
                     const today = new Date();
                     let fromDate = new Date(today);
 
@@ -399,8 +428,16 @@
                     const fromDateStr = fromDate.toISOString().split('T')[0];
                     const toDateStr = today.toISOString().split('T')[0];
 
-                    const response = await fetch(`https://api.polygon.io/v2/aggs/ticker/${this.selectedTicker}/range/1/day/${fromDateStr}/${toDateStr}?apiKey=${this.apiKey}`);
-                    const data = await response.json();
+                    let data = null;
+
+                    try {
+                        const response = await fetch(`https://api.polygon.io/v2/aggs/ticker/${this.selectedTicker}/range/1/day/${fromDateStr}/${toDateStr}?apiKey=${this.apiKey}`);
+                        data = await response.json();
+                        console.log(`Retrieved fresh data from Polygion.io for ${this.selectedTicker} successfully`);
+                    } catch (error) {
+                        console.error(`Failed to retrieve data from Polygon.io for ${this.selectedTicker}`, error);
+                        throw error;
+                    }
 
                     if (data.results) {
                         try {
@@ -747,35 +784,50 @@
                     if (this.stockData.length === 0) return;
                     
                     const ticker = this.selectedTicker;
-                    const latestPrice = await this.fetchLatestPriceFinnhub(ticker);
+                    console.log(`Request to refresh latest price for ${ticker}...`);
+
+                    try {
+                        const latestPrice = await this.fetchLatestPriceFinnhub(ticker);
                     
-                    if (latestPrice) {
-                        // find index of latest date and then update that with the new price
-                        const mostRecentIndex = this.stockData.reduce((maxIndex, current, currentIndex, arr) => {
-                            return new Date(current.date) > new Date(arr[maxIndex].date) ? currentIndex : maxIndex;
-                        }, 0);
-
-                        this.stockData[mostRecentIndex].closePrice = latestPrice;
-                        this.stockData[mostRecentIndex].percentDifference = ((latestPrice - this.stockData[mostRecentIndex].allTimeHigh) / this.stockData[mostRecentIndex].allTimeHigh) * 100;
-
-                        // Update the cache as well
-                        const cacheKey = `${ticker}_${this.selectedTimeRange}`;
-                        let cachedData = JSON.parse(localStorage.getItem(cacheKey));
-                        if (cachedData) {
-                            const mostRecentCachedDataIndex = cachedData.data.reduce((maxIndex, current, currentIndex, arr) => {
-                                return current.t > arr[maxIndex].t ? currentIndex : maxIndex;
+                        if (latestPrice) {
+                            // find index of latest date and then update that with the new price
+                            const mostRecentIndex = this.stockData.reduce((maxIndex, current, currentIndex, arr) => {
+                                return new Date(current.date) > new Date(arr[maxIndex].date) ? currentIndex : maxIndex;
                             }, 0);
-                            cachedData.data[mostRecentCachedDataIndex].c = latestPrice;
 
-                            localStorage.setItem(cacheKey, JSON.stringify(cachedData));
-                        } else {
-                            console.log("No cached data found while trying to update refreshed latest price");
+                            this.stockData[mostRecentIndex].closePrice = latestPrice;
+                            this.stockData[mostRecentIndex].percentDifference = ((latestPrice - this.stockData[mostRecentIndex].allTimeHigh) / this.stockData[mostRecentIndex].allTimeHigh) * 100;
+ 
+                            // Update the cache as well
+                            const cacheKey = `${ticker}_${this.selectedTimeRange}`;
+                            let cachedData = JSON.parse(localStorage.getItem(cacheKey));
+                            if (cachedData) {
+                                const mostRecentCachedDataIndex = cachedData.data.reduce((maxIndex, current, currentIndex, arr) => {
+                                    return current.t > arr[maxIndex].t ? currentIndex : maxIndex;
+                                }, 0);
+                                cachedData.data[mostRecentCachedDataIndex].c = latestPrice;
+
+                                localStorage.setItem(cacheKey, JSON.stringify(cachedData));
+                            } else {
+                                console.log("No cached data found while trying to update refreshed latest price");
+                            }
+                            
+                            // Blink the number a few seconds to show its been updated
+                            this.latestPriceRefreshUpdated = true;
+                            setTimeout(() => {
+                                this.latestPriceRefreshUpdated = false;
+                            }, 3000);
+
+                            // Redraw charts
+                            this.displayCharts();
+
+                            console.log("Refreshed latest price data and updated table/charts/cache...");
                         }
-                        
-                        // Redraw charts
-                        this.displayCharts();
-
-                        console.log("Refreshed latest price data and updated table/charts/cache...");
+                    } catch (error) {
+                        this.latestPriceRefreshErrorAlert = true;
+                        setTimeout(() => {
+                            this.latestPriceRefreshErrorAlert = false;
+                        }, 3000);
                     }
                 },
 
