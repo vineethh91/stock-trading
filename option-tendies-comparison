@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Options Profit Calculator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .option-container {
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .option-header {
+            background-color: #f1f1f1;
+            padding: 10px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .option-header h3 {
+            margin: 0;
+        }
+        .option-content {
+            padding: 15px;
+            display: none;
+        }
+        .option-content.active {
+            display: block;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 10px;
+        }
+        label {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, button {
+            margin: 5px 0;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #chart-container {
+            margin-top: 20px;
+        }
+        #price-slider {
+            width: 100%;
+            margin-top: 20px;
+        }
+        .collapse-icon::after {
+            content: '▼';
+            font-size: 12px;
+            margin-left: 5px;
+        }
+        .option-header.collapsed .collapse-icon::after {
+            content: '▶';
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Options Profit Calculator</h1>
+        <div class="input-group">
+            <label for="stock-ticker">Stock Ticker:</label>
+            <input type="text" id="stock-ticker" value="STOCK">
+        </div>
+        <div id="options-container"></div>
+        <button id="add-option">Add Option</button>
+        <div class="input-group">
+            <label for="price-slider">Current Stock Price: $<span id="current-price">100</span></label>
+            <input type="range" id="price-slider" min="50" max="150" value="100" step="1">
+        </div>
+        <div id="chart-container">
+            <canvas id="profitLossChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let options = [];
+        let chart;
+        let stockTicker = "STOCK";
+
+        function updateStockTicker(newTicker) {
+            stockTicker = newTicker.toUpperCase();
+            renderOptions();
+            updateChart();
+        }
+
+        function addOption() {
+            const optionId = Date.now();
+            const defaultExpiration = new Date();
+            defaultExpiration.setMonth(defaultExpiration.getMonth() + 1);
+            options.push({
+                id: optionId,
+                strike: 100,
+                expiration: formatDate(defaultExpiration),
+                type: 'call',
+                price: 5,
+                iv: 30,
+                quantity: 1
+            });
+            renderOptions();
+            updateChart();
+        }
+
+        function removeOption(id) {
+            options = options.filter(option => option.id !== id);
+            renderOptions();
+            updateChart();
+        }
+
+        function formatDate(date) {
+            const d = new Date(date);
+            let month = '' + (d.getMonth() + 1);
+            let day = '' + d.getDate();
+            const year = d.getFullYear();
+
+            if (month.length < 2) 
+                month = '0' + month;
+            if (day.length < 2) 
+                day = '0' + day;
+
+            return [year, month, day].join('-');
+        }
+
+        function getOptionLabel(option) {
+            const expDate = new Date(option.expiration);
+            const yy = expDate.getFullYear().toString().slice(-2);
+            const mm = (expDate.getMonth() + 1).toString().padStart(2, '0');
+            const dd = expDate.getDate().toString().padStart(2, '0');
+            const type = option.type === 'call' ? 'C' : 'P';
+            const strike = option.strike.toString().padStart(3, '0');
+            return `${stockTicker}${yy}${mm}${dd}${type}${strike}`;
+        }
+
+        function renderOptions() {
+            const container = document.getElementById('options-container');
+            container.innerHTML = options.map((option) => `
+                <div class="option-container">
+                    <div class="option-header" onclick="toggleOption(${option.id})">
+                        <h3>${getOptionLabel(option)}</h3>
+                        <span class="collapse-icon"></span>
+                    </div>
+                    <div id="option-content-${option.id}" class="option-content">
+                        <div class="input-group">
+                            <label for="strike-${option.id}">Strike Price:</label>
+                            <input type="number" id="strike-${option.id}" value="${option.strike}" onchange="updateOption(${option.id}, 'strike', this.value)" placeholder="Strike Price">
+                        </div>
+                        <div class="input-group">
+                            <label for="expiration-${option.id}">Expiration Date:</label>
+                            <input type="date" id="expiration-${option.id}" value="${option.expiration}" onchange="updateOption(${option.id}, 'expiration', this.value)">
+                        </div>
+                        <div class="input-group">
+                            <label for="type-${option.id}">Option Type:</label>
+                            <select id="type-${option.id}" onchange="updateOption(${option.id}, 'type', this.value)">
+                                <option value="call" ${option.type === 'call' ? 'selected' : ''}>Call</option>
+                                <option value="put" ${option.type === 'put' ? 'selected' : ''}>Put</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="price-${option.id}">Option Price:</label>
+                            <input type="number" id="price-${option.id}" value="${option.price}" onchange="updateOption(${option.id}, 'price', this.value)" placeholder="Option Price">
+                        </div>
+                        <div class="input-group">
+                            <label for="iv-${option.id}">Implied Volatility (%):</label>
+                            <input type="number" id="iv-${option.id}" value="${option.iv}" onchange="updateOption(${option.id}, 'iv', this.value)" placeholder="Implied Volatility">
+                        </div>
+                        <div class="input-group">
+                            <label for="quantity-${option.id}">Quantity:</label>
+                            <input type="number" id="quantity-${option.id}" value="${option.quantity}" onchange="updateOption(${option.id}, 'quantity', this.value)" placeholder="Quantity">
+                        </div>
+                        <button onclick="removeOption(${option.id})">Remove Option</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleOption(id) {
+            const content = document.getElementById(`option-content-${id}`);
+            const header = content.previousElementSibling;
+            content.classList.toggle('active');
+            header.classList.toggle('collapsed');
+        }
+
+        function updateOption(id, field, value) {
+            const option = options.find(opt => opt.id === id);
+            if (option) {
+                if (field === 'expiration') {
+                    option[field] = formatDate(value);
+                } else {
+                    option[field] = field === 'type' ? value : Number(value);
+                }
+                renderOptions();
+                updateChart();
+            }
+        }
+
+        function blackScholes(type, S, K, T, sigma, r) {
+            const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
+            const d2 = d1 - sigma * Math.sqrt(T);
+            
+            if (type === 'call') {
+                return S * cdf(d1) - K * Math.exp(-r * T) * cdf(d2);
+            } else {
+                return K * Math.exp(-r * T) * cdf(-d2) - S * cdf(-d1);
+            }
+        }
+
+        function cdf(x) {
+            let t = 1 / (1 + 0.2316419 * Math.abs(x));
+            let d = 0.3989423 * Math.exp(-x * x / 2);
+            let prob = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+            if (x > 0) {
+                prob = 1 - prob;
+            }
+            return prob;
+        }
+
+        function calculateProfitLoss(option, stockPrice, daysToExpiration) {
+            const { strike, type, price, iv, quantity } = option;
+            const T = daysToExpiration / 365; // Convert days to years
+            const r = 0.02; // Assume 2% risk-free rate
+
+            const optionPrice = blackScholes(type, stockPrice, strike, T, iv / 100, r);
+            const profitLoss = (optionPrice - price) * 100 * quantity; // Multiply by 100 for contract size
+
+            return profitLoss;
+        }
+
+        function updateChart() {
+            const currentPrice = Number(document.getElementById('price-slider').value);
+            const today = new Date();
+            const maxDays = Math.max(...options.map(option => {
+                const expDate = new Date(option.expiration);
+                return Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+            }));
+
+            const datasets = options.map((option) => {
+                const data = [];
+                for (let day = maxDays; day >= 0; day--) {
+                    data.push({
+                        x: day,
+                        y: calculateProfitLoss(option, currentPrice, day)
+                    });
+                }
+                return {
+                    label: getOptionLabel(option),
+                    data: data,
+                    borderColor: `hsl(${option.id * 137.5 % 360}, 50%, 50%)`,
+                    fill: false
+                };
+            });
+
+            if (chart) {
+                chart.data.datasets = datasets;
+                chart.update();
+            } else {
+                const ctx = document.getElementById('profitLossChart').getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: { datasets },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: {
+                                type: 'linear',
+                                position: 'bottom',
+                                title: {
+                                    display: true,
+                                    text: 'Days to Expiration'
+                                },
+                                reverse: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return Math.round(value);
+                                    }
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Profit/Loss ($)'
+                                }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+
+        // Wait for the DOM to be fully loaded before attaching event listeners and initializing
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('stock-ticker').addEventListener('change', function() {
+                updateStockTicker(this.value);
+            });
+
+            document.getElementById('add-option').addEventListener('click', addOption);
+
+            document.getElementById('price-slider').addEventListener('input', function() {
+                document.getElementById('current-price').textContent = this.value;
+                updateChart();
+            });
+
+            // Initialize
+            addOption();
+            updateChart();
+        });
+
+    </script>
+</body>
+</html>
