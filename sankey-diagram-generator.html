@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alphabet Income Statement Sankey Diagram</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-6xl">
+        <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Earnings Statement Sankey Diagram</h1>
+        <div class="mb-4">
+            <input type="file" id="csvFile" accept=".csv" class="mb-2 p-2 border rounded">
+            <button id="renderButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Render Diagram
+            </button>
+        </div>
+        <div id="sankey" class="w-full h-[800px]"></div>
+    </div>
+
+    <script>
+        let csvData;
+
+        document.getElementById('csvFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            Papa.parse(file, {
+                header: true,
+                dynamicTyping: true,
+                complete: function(results) {
+                    csvData = results.data;
+                    console.log('CSV Data:', csvData);
+                }
+            });
+        });
+
+        document.getElementById('renderButton').addEventListener('click', function() {
+            if (!csvData) {
+                alert('Please upload a CSV file first.');
+                return;
+            }
+            renderSankeyDiagram(csvData);
+        });
+
+        function renderSankeyDiagram(data) {
+            const nodeColors = {
+                "Search advertising": "#4285F4",
+                "YouTube": "#FF0000",
+                "AdMob, AdSense & other": "#34A853",
+                "Playstore & other": "#FBBC05",
+                "Google Cloud": "#EA4335",
+                "Other revenue": "#5F6368",
+                "Ad revenue": "#4285F4",
+                "Revenue": "#3498db",
+                "Cost of revenue": "#e74c3c",
+                "Gross profit": "#2ecc71",
+                "Operating expenses": "#e67e22",
+                "Operating profit": "#27ae60",
+                "R&D": "#c0392b",
+                "Sales & marketing": "#d35400",
+                "General & admin": "#16a085",
+                "Traffic acquisition costs": "#8e44ad",
+                "Content acquisition, data centers, other": "#2c3e50",
+                "Tax": "#f39c12",
+                "Other expense": "#7f8c8d",
+                "Net profit": "#2980b9"
+            };
+
+            const nodeValues = {};
+            const sankeyData = {
+                type: "sankey",
+                orientation: "h",
+                node: {
+                    pad: 15,
+                    thickness: 30,
+                    line: { color: "black", width: 0.5 },
+                    label: [],
+                    color: []
+                },
+                link: {
+                    source: [],
+                    target: [],
+                    value: [],
+                    color: []
+                }
+            };
+
+            function addLink(source, target, value) {
+                const sourceIndex = sankeyData.node.label.indexOf(source);
+                const targetIndex = sankeyData.node.label.indexOf(target);
+                sankeyData.link.source.push(sourceIndex);
+                sankeyData.link.target.push(targetIndex);
+                sankeyData.link.value.push(value);
+                sankeyData.link.color.push(nodeColors[source]);
+
+                // Update node values
+                nodeValues[source] = (nodeValues[source] || 0) + value;
+                nodeValues[target] = (nodeValues[target] || 0) + value;
+            }
+
+            // Add links based on CSV data
+            data.forEach(row => {
+                if (row.source && row.target && row.value) {
+                    if (!sankeyData.node.label.includes(row.source)) {
+                        sankeyData.node.label.push(row.source);
+                        sankeyData.node.color.push(nodeColors[row.source]);
+                    }
+                    if (!sankeyData.node.label.includes(row.target)) {
+                        sankeyData.node.label.push(row.target);
+                        sankeyData.node.color.push(nodeColors[row.target]);
+                    }
+                    addLink(row.source, row.target, row.value);
+                }
+            });
+
+            // Update node labels with values
+            sankeyData.node.label = sankeyData.node.label.map(label => 
+                `${label}<br>${nodeValues[label].toFixed(1)}B`
+            );
+
+            const layout = {
+                title: "Alphabet Income Statement Sankey Diagram",
+                font: { size: 12, color: "#000000" },
+                autosize: true,
+                margin: { l: 0, r: 0, b: 0, t: 40, pad: 4 },
+                paper_bgcolor: "#ffffff",
+                plot_bgcolor: "#ffffff"
+            };
+
+            Plotly.newPlot('sankey', [sankeyData], layout, {responsive: true});
+        }
+    </script>
+</body>
+</html>
