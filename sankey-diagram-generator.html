@@ -66,8 +66,8 @@
                 type: "sankey",
                 orientation: "h",
                 node: {
-                    pad: 15,
-                    thickness: 20,
+                    pad: [5, 10],
+                    thickness: 15,
                     line: { color: "black", width: 0.5 },
                     label: [],
                     color: []
@@ -76,7 +76,8 @@
                     source: [],
                     target: [],
                     value: [],
-                    color: []
+                    color: [],
+                    arrangement: 'snap'
                 }
             };
 
@@ -84,32 +85,45 @@
             const nodeValues = {};
             let nodeIndex = 0;
 
-            function getNodeIndex(name) {
+            function getNodeIndex(name, category) {
                 if (!(name in nodeIndices)) {
                     nodeIndices[name] = nodeIndex++;
                     sankeyData.node.label.push(name);
-                    sankeyData.node.color.push(nodeColors[name] || "#" + Math.floor(Math.random()*16777215).toString(16));
+                    sankeyData.node.color.push(getColor(category));
                     nodeValues[name] = { incoming: 0, outgoing: 0 };
                 }
                 return nodeIndices[name];
             }
 
-            function addLink(source, target, value) {
-                const sourceIndex = getNodeIndex(source);
-                const targetIndex = getNodeIndex(target);
+            function addLink(source, target, value, category) {
+                const sourceIndex = getNodeIndex(source, category);
+                const targetIndex = getNodeIndex(target, category);
                 sankeyData.link.source.push(sourceIndex);
                 sankeyData.link.target.push(targetIndex);
                 sankeyData.link.value.push(value);
-                sankeyData.link.color.push(sankeyData.node.color[sourceIndex]);
+                sankeyData.link.color.push(getColor(category));
 
                 nodeValues[source].outgoing += value;
                 nodeValues[target].incoming += value;
             }
 
+            function getColor(category) {
+                switch(category) {
+                    case "revenue":
+                        return "#bbbbbb";  // Grey for revenue streams
+                    case "profit":
+                        return "#8cda8d";  // Green for profit-related streams
+                    case "expense":
+                        return "#da8d8c";  // Red for expense/cost-related streams
+                    default:
+                        return "#000000";  // Black as a fallback
+                }
+            }
+
             // Process data
             data.forEach(row => {
                 if (row.source && row.target && row.value) {
-                    addLink(row.source, row.target, row.value);
+                    addLink(row.source, row.target, row.value, row.category);
                 }
             });
 
@@ -121,17 +135,17 @@
 
             const layout = {
                 title: `${companyName} Earnings Report`,
-                font: { size: 10, color: "#000000" },
+                font: { size: 15, color: "#000000" },
                 autosize: true,
-                margin: { l: 0, r: 0, b: 0, t: 40, pad: 4 },
+                margin: { l: 10, r: 10, b: 10, t: 10, pad: 4 },
                 paper_bgcolor: "#ffffff",
                 plot_bgcolor: "#ffffff",
                 sankey: {
                     node: {
                       label: sankeyData.node.label,
                       color: sankeyData.node.color,
-                      pad: 15,
-                      thickness: 20,
+                      pad: 10,
+                      thickness: 10,
                       line: {
                         color: "black",
                         width: 0.5
