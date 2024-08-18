@@ -89,7 +89,7 @@
                 if (!(name in nodeIndices)) {
                     nodeIndices[name] = nodeIndex++;
                     sankeyData.node.label.push(name);
-                    sankeyData.node.color.push(getColor(category));
+                    sankeyData.node.color.push(getNodeColor(category));
                     nodeValues[name] = { incoming: 0, outgoing: 0 };
                 }
                 return nodeIndices[name];
@@ -101,20 +101,33 @@
                 sankeyData.link.source.push(sourceIndex);
                 sankeyData.link.target.push(targetIndex);
                 sankeyData.link.value.push(value);
-                sankeyData.link.color.push(getColor(category));
+                sankeyData.link.color.push(getLinkColor(category));
 
                 nodeValues[source].outgoing += value;
                 nodeValues[target].incoming += value;
             }
 
-            function getColor(category) {
+            function getNodeColor(category) {
+                switch(category) {
+                    case "revenue":
+                        return "#696969";  // Grey for revenue streams
+                    case "profit":
+                        return "#00a34c";  // Green for profit-related streams
+                    case "expense":
+                        return "#d1003f";  // Red for expense/cost-related streams
+                    default:
+                        return "#000000";  // Black as a fallback
+                }
+            }
+
+            function getLinkColor(category) {
                 switch(category) {
                     case "revenue":
                         return "#bbbbbb";  // Grey for revenue streams
                     case "profit":
-                        return "#8cda8d";  // Green for profit-related streams
+                        return "#8cd5ae";  // Green for profit-related streams
                     case "expense":
-                        return "#da8d8c";  // Red for expense/cost-related streams
+                        return "#ea8ca8";  // Red for expense/cost-related streams
                     default:
                         return "#000000";  // Black as a fallback
                 }
