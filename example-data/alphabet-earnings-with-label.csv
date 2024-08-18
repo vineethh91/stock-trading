@@ -1,0 +1,20 @@
+source,target,value,category
+Search advertising,Ad revenue,44.0,revenue
+YouTube,Ad revenue,8.0,revenue
+AdMob AdSense & other,Ad revenue,7.7,revenue
+Playstore & other,Revenue,8.3,revenue
+Google Cloud,Revenue,8.4,revenue
+Other revenue,Revenue,0.3,revenue
+Ad revenue,Revenue,59.6,revenue
+Revenue,Cost of revenue,33.2,expense
+Revenue,Gross profit,43.5,profit
+Gross profit,Operating expenses,22.1,expense
+Gross profit,R&D,11.3,expense
+Gross profit,Sales & marketing,6.9,expense
+Gross profit,General & admin,4.0,expense
+Gross profit,Operating profit,21.3,profit
+Operating profit,Tax,1.5,expense
+Operating profit,Other expense,0.1,expense
+Operating profit,Net profit,19.7,profit
+Cost of revenue,Traffic acquisition costs,12.6,expense
+Cost of revenue,Content acquisition data centers other,20.6,expense
