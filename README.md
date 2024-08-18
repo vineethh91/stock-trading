@@ -9,4 +9,5 @@ Useful stock charts
 ## Links
 1. Main page - https://vineethh91.github.io/stock-trading/
 2. Stock from ATH - https://vineethh91.github.io/stock-trading/stock-from-ath.html
-3. Options tendies comparison - https://vineethh91.github.io/stock-trading/option-tendies-comparison.html
+3. Sankey diagrams for earnings - https://vineethh91.github.io/stock-trading/sankey-diagram-generator.html
+4. Options tendies comparison - https://vineethh91.github.io/stock-trading/option-tendies-comparison.html
