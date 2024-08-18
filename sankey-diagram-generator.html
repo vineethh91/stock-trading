@@ -11,8 +11,9 @@
 <body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
     <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-6xl">
         <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Company Income Statement Sankey Diagram</h1>
-        <div class="mb-4">
-            <input type="file" id="csvFile" accept=".csv" class="mb-2 p-2 border rounded">
+        <div class="mb-4 flex items-center">
+            <input type="text" id="companyName" placeholder="Enter Company Name" class="mr-2 p-2 border rounded flex-grow">
+            <input type="file" id="csvFile" accept=".csv" class="mr-2 p-2 border rounded">
             <button id="renderButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                 Render Diagram
             </button>
@@ -22,6 +23,14 @@
 
     <script>
         let csvData;
+        let companyName = "Company";
+
+        document.getElementById('companyName').addEventListener('input', function(e) {
+            companyName = e.target.value || "Company";
+            if (csvData) {
+                renderSankeyDiagram(csvData);
+            }
+        });
 
         document.getElementById('csvFile').addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -111,7 +120,7 @@
             });
 
             const layout = {
-                title: "Company Income Statement",
+                title: `${companyName} Earnings Report`,
                 font: { size: 10, color: "#000000" },
                 autosize: true,
                 margin: { l: 0, r: 0, b: 0, t: 40, pad: 4 },
