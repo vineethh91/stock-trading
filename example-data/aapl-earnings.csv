@@ -1,0 +1,18 @@
+source,target,value
+iPhone,Products,205.5
+MacBook,Products,40.2
+iPad,Products,29.3
+Watch and AirPods,Products,41.2
+Products,Revenue,316.2
+Services,Revenue,78.2
+Revenue,Cost of revenue,223.5
+Revenue,Gross profit,170.8
+Gross profit,Operating expenses,51.4
+Gross profit,Operating profit,119.4
+Operating profit,Tax,19.3
+Operating profit,Other,0.3
+Operating profit,Net profit,99.8
+Cost of revenue,Product costs,201.4
+Cost of revenue,Service costs,22.1
+Operating expenses,R&D,26.3
+Operating expenses,SG&A,25.1
