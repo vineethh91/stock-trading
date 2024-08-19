@@ -1,22 +1,21 @@
-source,target,value
-Online stores,Net sales,55.392
-Physical stores,Net sales,5.206
-Third-party seller services,Net sales,36.201
-Advertising services,Net sales,12.771
-Subscription services,Net sales,10.866
-AWS,Net sales,26.281
-Other,Net sales,1.260
-Net sales,Cost of sales,73.785
-Net sales,Operating expenses,59.520
-Net sales,Operating income,14.672
-Operating income,Interest income,1.180
-Operating income,Interest expense,0.589
-Operating income,Other income,0.018
-Operating income,Income before taxes,15.245
-Income before taxes,Provision for income taxes,1.767
-Income before taxes,Net income,13.485
-Operating expenses,Fulfillment,23.566
-Operating expenses,Technology and infrastructure,22.304
-Operating expenses,Sales and marketing,10.512
-Operating expenses,General and administrative,3.041
-Operating expenses,Other operating expense,0.097
+source,target,value,category
+Online stores,Net sales,56,revenue
+Physical stores,Net sales,6,revenue
+Third-party seller services,Net sales,37,revenue
+Advertising services,Net sales,13,revenue
+Subscription services,Net sales,11,revenue
+AWS,Net sales,27,revenue
+Other,Net sales,2,revenue
+Net sales,Operating expenses,134,expense
+Net sales,Operating income,15,profit
+Operating income,Income before income taxes,16,profit
+Income before income taxes,Net income,14,profit
+Net sales,Cost of sales,74,expense
+Net sales,Fulfillment,24,expense
+Net sales,Technology and infrastructure,23,expense
+Net sales,Sales and marketing,11,expense
+Net sales,General and administrative,4,expense
+Net sales,Other operating expense,1,expense
+North America,Net sales,91,revenue
+International,Net sales,32,revenue
+AWS,Net sales,27,revenue
