@@ -3,174 +3,223 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Company Income Statement Sankey Diagram</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <title>Income Statement Sankey Diagram</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-sankey/0.12.3/d3-sankey.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            width: 100%;
+            max-width: 1200px;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 24px;
+            text-align: center;
+            color: #333;
+        }
+        .controls {
+            margin-bottom: 16px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        input, button {
+            padding: 8px;
+            font-size: 16px;
+        }
+        #sankey {
+            width: 100%;
+            height: 800px;
+        }
+        #fileUpload {
+            display: none;
+        }
+        .file-upload-label {
+            padding: 8px 12px;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-6xl">
-        <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Company Income Statement Sankey Diagram</h1>
-        <div class="mb-4 flex items-center">
-            <input type="text" id="companyName" placeholder="Enter Company Name" class="mr-2 p-2 border rounded flex-grow">
-            <input type="file" id="csvFile" accept=".csv" class="mr-2 p-2 border rounded">
-            <button id="renderButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                Render Diagram
-            </button>
+<body>
+    <div class="container">
+        <h1>Income Statement Sankey Diagram</h1>
+        <div class="controls">
+            <label for="fileUpload" class="file-upload-label">Choose CSV File</label>
+            <input type="file" id="fileUpload" accept=".csv">
+            <button onclick="loadData()">Render Diagram</button>
         </div>
-        <div id="sankey" class="w-full h-[800px]"></div>
+        <div id="error"></div>
+        <div id="sankey"></div>
     </div>
 
     <script>
-        let csvData;
-        let companyName = "Company";
+        const width = 1100;
+        const height = 800;
 
-        document.getElementById('companyName').addEventListener('input', function(e) {
-            companyName = e.target.value || "Company";
-            if (csvData) {
-                renderSankeyDiagram(csvData);
+        const svg = d3.select("#sankey")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        const sankey = d3.sankey()
+            .nodeWidth(15)
+            .nodePadding(10)
+            .extent([[1, 1], [width - 1, height - 6]]);
+
+        let csvData;
+
+        document.getElementById('fileUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    csvData = d3.csvParse(e.target.result);
+                    console.log("CSV data loaded", csvData);
+                };
+                reader.readAsText(file);
             }
         });
 
-        document.getElementById('csvFile').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            Papa.parse(file, {
-                header: true,
-                dynamicTyping: true,
-                complete: function(results) {
-                    csvData = results.data;
-                    console.log('CSV Data:', csvData);
-                }
-            });
-        });
+        function loadData() {
+            const errorElement = document.getElementById("error");
+            errorElement.textContent = "";
 
-        document.getElementById('renderButton').addEventListener('click', function() {
             if (!csvData) {
-                alert('Please upload a CSV file first.');
+                errorElement.textContent = "Please upload a CSV file first.";
                 return;
             }
-            renderSankeyDiagram(csvData);
-        });
 
-        function renderSankeyDiagram(data) {
-            const nodeColors = {
-                "Revenue": "#3498db",
-                "Cost of revenue": "#e74c3c",
-                "Gross profit": "#2ecc71",
-                "Operating expenses": "#e67e22",
-                "Operating profit": "#27ae60",
-                "Net profit": "#2980b9"
+            const graph = {
+                nodes: [],
+                links: []
             };
 
-            const sankeyData = {
-                type: "sankey",
-                orientation: "h",
-                node: {
-                    pad: [5, 10],
-                    thickness: 15,
-                    line: { color: "black", width: 0.5 },
-                    label: [],
-                    color: []
-                },
-                link: {
-                    source: [],
-                    target: [],
-                    value: [],
-                    color: [],
-                    arrangement: 'snap'
-                }
-            };
-
-            const nodeIndices = {};
-            const nodeValues = {};
-            let nodeIndex = 0;
-
-            function getNodeIndex(name, category) {
-                if (!(name in nodeIndices)) {
-                    nodeIndices[name] = nodeIndex++;
-                    sankeyData.node.label.push(name);
-                    sankeyData.node.color.push(getNodeColor(category));
-                    nodeValues[name] = { incoming: 0, outgoing: 0 };
-                }
-                return nodeIndices[name];
-            }
-
-            function addLink(source, target, value, category) {
-                const sourceIndex = getNodeIndex(source, category);
-                const targetIndex = getNodeIndex(target, category);
-                sankeyData.link.source.push(sourceIndex);
-                sankeyData.link.target.push(targetIndex);
-                sankeyData.link.value.push(value);
-                sankeyData.link.color.push(getLinkColor(category));
-
-                nodeValues[source].outgoing += value;
-                nodeValues[target].incoming += value;
-            }
-
-            function getNodeColor(category) {
-                switch(category) {
-                    case "revenue":
-                        return "#696969";  // Grey for revenue streams
-                    case "profit":
-                        return "#00a34c";  // Green for profit-related streams
-                    case "expense":
-                        return "#d1003f";  // Red for expense/cost-related streams
-                    default:
-                        return "#000000";  // Black as a fallback
-                }
-            }
-
-            function getLinkColor(category) {
-                switch(category) {
-                    case "revenue":
-                        return "#bbbbbb";  // Grey for revenue streams
-                    case "profit":
-                        return "#8cd5ae";  // Green for profit-related streams
-                    case "expense":
-                        return "#ea8ca8";  // Red for expense/cost-related streams
-                    default:
-                        return "#000000";  // Black as a fallback
-                }
-            }
-
-            // Process data
-            data.forEach(row => {
-                if (row.source && row.target && row.value) {
-                    addLink(row.source, row.target, row.value, row.category);
-                }
+            const sourceOrTarget2CategoryMap = new Map();
+            // Create a set of unique node names
+            const nodeSet = new Set();
+            csvData.forEach(function(d) {
+                nodeSet.add(d.source);
+                nodeSet.add(d.target);
+                sourceOrTarget2CategoryMap.set(d.source, d.category);
+                sourceOrTarget2CategoryMap.set(d.target, d.category);
             });
 
-            // Update node labels with values
-            sankeyData.node.label = sankeyData.node.label.map(label => {
-                const value = Math.max(nodeValues[label].incoming, nodeValues[label].outgoing);
-                return `${label} ($${value.toFixed(1)}B)`;
+            // Create nodes array and node name to index mapping
+            const nodeMap = new Map();
+            Array.from(nodeSet).forEach((name, index) => {
+                graph.nodes.push({ name: name });
+                nodeMap.set(name, index);
             });
 
-            const layout = {
-                title: `${companyName} Earnings Report`,
-                font: { size: 15, color: "#000000" },
-                autosize: true,
-                margin: { l: 10, r: 10, b: 10, t: 10, pad: 4 },
-                paper_bgcolor: "#ffffff",
-                plot_bgcolor: "#ffffff",
-                sankey: {
-                    node: {
-                      label: sankeyData.node.label,
-                      color: sankeyData.node.color,
-                      pad: 10,
-                      thickness: 10,
-                      line: {
-                        color: "black",
-                        width: 0.5
-                      }
-                   },
-                   link: {
-                      color: sankeyData.link.color
-                   }
-                }
+            // Create links using node indices
+            csvData.forEach(function(d) {
+                graph.links.push({
+                    source: nodeMap.get(d.source),
+                    target: nodeMap.get(d.target),
+                    value: +d.value,
+                    category: d.category
+                });
+            });
+
+            try {
+                const sankeyData = sankey(graph);
+
+                svg.selectAll("*").remove();
+
+                // Add links
+                const link = svg.append("g")
+                    .selectAll("path")
+                    .data(sankeyData.links)
+                    .enter()
+                    .append("path")
+                    .attr("d", d3.sankeyLinkHorizontal())
+                    .attr("stroke-width", d => Math.max(1, d.width))
+                    .style("stroke", d => getCategoryColor(d.category, "link"))
+                    .style("fill", d => getCategoryColor(d.category, "link"))
+                    .style("opacity", 0.5);
+
+                // Add nodes
+                const node = svg.append("g")
+                    .selectAll("rect")
+                    .data(sankeyData.nodes)
+                    .enter()
+                    .append("rect")
+                    .attr("x", d => d.x0)
+                    .attr("y", d => d.y0)
+                    .attr("height", d => d.y1 - d.y0)
+                    .attr("width", d => d.x1 - d.x0)
+                    .style("fill", d => getCategoryColor(sourceOrTarget2CategoryMap.get(d.name), "node"));
+
+                // Add node labels
+                svg.append("g")
+                    .selectAll("text")
+                    .data(sankeyData.nodes)
+                    .enter()
+                    .append("text")
+                    .attr("x", d => d.x0 - 6)
+                    .attr("y", d => (d.y1 + d.y0) / 2)
+                    .attr("dy", "0.35em")
+                    .attr("text-anchor", "end")
+                    .text(d => d.name)
+                    .filter(d => d.x0 < width / 2)
+                    .attr("x", d => d.x1 + 6)
+                    .attr("text-anchor", "start");
+
+            } catch (error) {
+                console.error("Error creating Sankey diagram:", error);
+                errorElement.textContent = "Error creating Sankey diagram. Please check your CSV data format.";
+            }
+        }
+
+        function getCategoryColor(category, nodeOrLink) {
+            // console.log("nodeOrLink ", nodeOrLink);
+            
+            const nodeColorMap = {
+                'revenue': '#696969',
+                'expense': '#d1003f',
+                'profit': '#00a34c'
             };
 
-            Plotly.newPlot('sankey', [sankeyData], layout, {responsive: true});
+            const linkColorMap = {
+                'revenue': '#bbbbbb',
+                'expense': '#ea8ca8',
+                'profit': '#8cd5ae'
+            };
+
+            switch(nodeOrLink) {
+                case "node":
+                    // console.log("returning node color for category ", category, nodeColorMap[category]);
+                    return nodeColorMap[category];
+                case "link":
+                    // console.log("returning link color", linkColorMap[category]);
+                    return linkColorMap[category];
+                default:
+                    console.log("returning default color");
+                    return "#000000";  // Black as a fallback
+            }
         }
     </script>
 </body>
