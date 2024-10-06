@@ -1,3 +1,6 @@
+# Finance tools
+1. Real estate equity estimator tool - https://vineethh91.github.io/stock-trading/real-estate-equity-estimator.html
+2. 
 # Stock Trading
 Useful stock stuff
 
