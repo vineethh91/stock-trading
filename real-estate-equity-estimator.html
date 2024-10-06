@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Property Equity Calculator</title>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        background-color: #f0f2f5;
+        color: #333;
+    }
+    h1 {
+        text-align: center;
+        padding: 20px 0;
+        margin: 10;
+        background: linear-gradient(90deg, #4b6cb7, #182848);
+        color: #fff;
+        font-size: 2em;
+    }
+    .container {
+        max-width: 800px;
+        margin: 30px auto;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .input-group {
+        display: flex;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+        align-items: center;
+    }
+    .input-group label {
+        flex: 1 0 200px;
+        margin-right: 10px;
+        font-weight: bold;
+    }
+    .input-group input {
+        flex: 2 0 200px;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        transition: border-color 0.3s;
+    }
+    .input-group input:focus {
+        border-color: #4b6cb7;
+        outline: none;
+    }
+    button {
+        display: block;
+        width: 100%;
+        padding: 15px;
+        font-size: 16px;
+        color: #fff;
+        background-color: #4b6cb7;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        margin-top: 10px;
+    }
+    button:hover {
+        background-color: #182848;
+    }
+    #results {
+        margin-top: 30px;
+        background-color: #e9f5ff;
+        padding: 20px;
+        border-radius: 5px;
+        border-left: 5px solid #4b6cb7;
+    }
+    #results h2 {
+        margin-top: 0;
+    }
+    #chart {
+        margin-top: 30px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+    details {
+        margin-top: 20px;
+    }
+    summary {
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        font-size: 14px;
+    }
+    th, td {
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+        text-align: right;
+    }
+    th {
+        background-color: #f7f9fb;
+    }
+    tr:hover {
+        background-color: #f1f1f1;
+    }
+    canvas {
+        max-width: 100%;
+    }
+    /* Responsive Design */
+    @media (max-width: 600px) {
+        .input-group {
+            flex-direction: column;
+        }
+        .input-group label, .input-group input {
+            flex: 1 0 100%;
+        }
+        button {
+            font-size: 14px;
+        }
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>Property Equity Calculator</h1>
+    <div class="input-group">
+        <label for="purchasePrice">Purchase Price ($):</label>
+        <input type="number" id="purchasePrice" value="300000">
+    </div>
+    <div class="input-group">
+        <label for="purchaseYear">Purchase Year:</label>
+        <input type="number" id="purchaseYear" value="2020">
+    </div>
+    <div class="input-group">
+        <label for="interestRate">Mortgage Interest Rate (%):</label>
+        <input type="number" step="0.01" id="interestRate" value="3.5">
+    </div>
+    <div class="input-group">
+        <label for="downPayment">Down Payment (%):</label>
+        <input type="number" step="0.01" id="downPayment" value="20">
+    </div>
+    <div class="input-group">
+        <label for="appreciationRate">Annual Real Estate Appreciation (%):</label>
+        <input type="number" step="0.01" id="appreciationRate" value="3">
+    </div>
+    <div class="input-group">
+        <label for="targetYear">Target Year:</label>
+        <input type="number" id="targetYear" value="2025">
+    </div>
+    <button onclick="calculateEquity()">Calculate Equity</button>
+    <div id="results"></div>
+    <canvas id="chart" width="800" height="400"></canvas>
+    <details>
+        <summary>Amortization Schedule</summary>
+        <div id="amortizationSchedule"></div>
+    </details>
+</div>
+
+<script>
+function calculateEquity() {
+    const purchasePrice = parseFloat(document.getElementById('purchasePrice').value);
+    const purchaseYear = parseInt(document.getElementById('purchaseYear').value);
+    const interestRate = parseFloat(document.getElementById('interestRate').value) / 100 / 12;
+    const downPaymentPercent = parseFloat(document.getElementById('downPayment').value) / 100;
+    const appreciationRate = parseFloat(document.getElementById('appreciationRate').value) / 100;
+    const targetYear = parseInt(document.getElementById('targetYear').value);
+    const loanTermYears = 30;
+    const totalPayments = loanTermYears * 12;
+    const downPaymentAmount = purchasePrice * downPaymentPercent;
+    const loanAmount = purchasePrice - downPaymentAmount;
+
+    // Monthly mortgage payment
+    const monthlyPayment = (loanAmount * interestRate * Math.pow(1 + interestRate, totalPayments)) / 
+                           (Math.pow(1 + interestRate, totalPayments) - 1);
+
+    let balance = loanAmount;
+    let totalPrincipalPaid = 0;
+    let totalInterestPaid = 0;
+    let amortizationSchedule = [];
+    let equityData = [];
+    let balanceData = [];
+    let targetYearData = {};
+    let isTargetYearReached = false;
+
+    for (let i = 0; i < totalPayments; i++) {
+        const interestPayment = balance * interestRate;
+        const principalPayment = monthlyPayment - interestPayment;
+        balance -= principalPayment;
+        totalPrincipalPaid += principalPayment;
+        totalInterestPaid += interestPayment;
+
+        // Record data at the end of each year or when the loan is paid off
+        if ((i + 1) % 12 === 0 || balance <= 0) {
+            const year = purchaseYear + Math.floor(i / 12);
+            amortizationSchedule.push({
+                year: year,
+                principalPaid: totalPrincipalPaid,
+                interestPaid: totalInterestPaid,
+                balance: balance > 0 ? balance : 0
+            });
+            equityData.push({
+                year: year,
+                equity: downPaymentAmount + totalPrincipalPaid
+            });
+            balanceData.push({
+                year: year,
+                balance: balance > 0 ? balance : 0
+            });
+
+            // Capture data at the target year
+            if (year === targetYear) {
+                targetYearData = {
+                    totalPrincipalPaid: totalPrincipalPaid,
+                    totalInterestPaid: totalInterestPaid,
+                    yearIndex: equityData.length - 1
+                };
+                isTargetYearReached = true;
+            }
+        }
+
+        if (balance <= 0) {
+            break;
+        }
+    }
+
+    // If target year is beyond the loan term
+    if (!isTargetYearReached) {
+        const lastIndex = equityData.length - 1;
+        targetYearData = {
+            totalPrincipalPaid: totalPrincipalPaid,
+            totalInterestPaid: totalInterestPaid,
+            yearIndex: lastIndex
+        };
+    }
+
+    // Calculate property appreciation
+    const yearsElapsed = targetYear - purchaseYear;
+    const futurePropertyValue = purchasePrice * Math.pow(1 + appreciationRate, yearsElapsed);
+    const appreciationValue = futurePropertyValue - purchasePrice;
+
+    // Total equity includes down payment, principal paid, and appreciation value
+    const totalEquity = downPaymentAmount + targetYearData.totalPrincipalPaid + appreciationValue;
+
+    displayResults(
+        totalEquity, 
+        targetYearData.totalInterestPaid, 
+        amortizationSchedule, 
+        equityData, 
+        balanceData, 
+        targetYearData.yearIndex, 
+        downPaymentAmount, 
+        targetYearData.totalPrincipalPaid, 
+        appreciationValue
+    );
+}
+
+function displayResults(totalEquity, totalInterestPaid, amortizationSchedule, equityData, balanceData, targetYearIndex, downPaymentAmount, principalPaid, appreciationValue) {
+    const resultsDiv = document.getElementById('results');
+    const targetYear = amortizationSchedule[targetYearIndex].year;
+    resultsDiv.innerHTML = `
+        <h2>Results</h2>
+        <p><strong>Total Estimated Equity by ${targetYear}:</strong> $${totalEquity.toFixed(2)}</p>
+        <ul>
+            <li><strong>Down Payment:</strong> $${downPaymentAmount.toFixed(2)}</li>
+            <li><strong>Principal Paid:</strong> $${principalPaid.toFixed(2)}</li>
+            <li><strong>Appreciation Value:</strong> $${appreciationValue.toFixed(2)}</li>
+        </ul>
+        <p><strong>Total Interest Paid by ${targetYear}:</strong> $${totalInterestPaid.toFixed(2)}</p>
+    `;
+    drawChart(equityData, balanceData, targetYearIndex);
+    displayAmortizationSchedule(amortizationSchedule);
+}
+
+function drawChart(equityData, balanceData, targetYearIndex) {
+    const canvas = document.getElementById('chart');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const padding = 60;
+    const chartWidth = canvas.width - padding * 2;
+    const chartHeight = canvas.height - padding * 2;
+
+    const years = equityData.map(d => d.year);
+    const equityValues = equityData.map(d => d.equity);
+    const balanceValues = balanceData.map(d => d.balance);
+
+    const maxEquity = Math.max(...equityValues);
+    const maxBalance = Math.max(...balanceValues);
+    const maxY = Math.max(maxEquity, maxBalance);
+
+    // Draw axes
+    ctx.beginPath();
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, canvas.height - padding);
+    ctx.lineTo(canvas.width - padding, canvas.height - padding);
+    ctx.strokeStyle = '#333';
+    ctx.stroke();
+
+    // Scaling factors
+    const xScale = chartWidth / (years.length - 1);
+    const yScale = chartHeight / maxY;
+
+    // Draw equity line
+    ctx.beginPath();
+    ctx.strokeStyle = '#4b6cb7';
+    ctx.lineWidth = 2;
+    equityValues.forEach((value, index) => {
+        const x = padding + xScale * index;
+        const y = canvas.height - padding - value * yScale;
+        if (index === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Draw balance line
+    ctx.beginPath();
+    ctx.strokeStyle = '#f45b69';
+    ctx.lineWidth = 2;
+    balanceValues.forEach((value, index) => {
+        const x = padding + xScale * index;
+        const y = canvas.height - padding - value * yScale;
+        if (index === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Highlight target year
+    const targetX = padding + xScale * targetYearIndex;
+
+    // Equity at target year
+    ctx.fillStyle = '#21bf73';
+    ctx.beginPath();
+    const targetEquityY = canvas.height - padding - equityValues[targetYearIndex] * yScale;
+    ctx.arc(targetX, targetEquityY, 6, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Balance at target year
+    ctx.beginPath();
+    const targetBalanceY = canvas.height - padding - balanceValues[targetYearIndex] * yScale;
+    ctx.arc(targetX, targetBalanceY, 6, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // X-axis labels (display every 5 years)
+    ctx.fillStyle = '#333';
+    ctx.font = '12px sans-serif';
+    years.forEach((year, index) => {
+        if (index % 5 === 0 || index === years.length - 1) {
+            const x = padding + xScale * index;
+            ctx.fillText(year, x - 15, canvas.height - padding + 20);
+            // Draw vertical grid lines
+            ctx.beginPath();
+            ctx.moveTo(x, padding);
+            ctx.lineTo(x, canvas.height - padding);
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.stroke();
+        }
+    });
+
+    // Y-axis labels and horizontal grid lines
+    const numYLabels = 5;
+    for (let i = 0; i <= numYLabels; i++) {
+        const yValue = (maxY / numYLabels) * i;
+        const y = canvas.height - padding - yValue * yScale;
+        ctx.fillText(`$${(yValue).toLocaleString(undefined, {maximumFractionDigits: 0})}`, padding - 55, y + 5);
+        // Draw horizontal grid lines
+        ctx.beginPath();
+        ctx.moveTo(padding, y);
+        ctx.lineTo(canvas.width - padding, y);
+        ctx.strokeStyle = '#e0e0e0';
+        ctx.stroke();
+    }
+
+    // Legend
+    const legendX = canvas.width - padding - 140;
+    const legendY = padding;
+    ctx.fillStyle = '#4b6cb7';
+    ctx.fillRect(legendX, legendY, 15, 15);
+    ctx.fillStyle = '#333';
+    ctx.fillText('Equity', legendX + 20, legendY + 12);
+
+    ctx.fillStyle = '#f45b69';
+    ctx.fillRect(legendX, legendY + 25, 15, 15);
+    ctx.fillStyle = '#333';
+    ctx.fillText('Mortgage Balance', legendX + 20, legendY + 37);
+
+    ctx.fillStyle = '#21bf73';
+    ctx.fillRect(legendX, legendY + 50, 15, 15);
+    ctx.fillStyle = '#333';
+    ctx.fillText('Target Year', legendX + 20, legendY + 62);
+}
+
+function displayAmortizationSchedule(schedule) {
+    const scheduleDiv = document.getElementById('amortizationSchedule');
+    let tableHTML = `
+        <table>
+            <tr>
+                <th>Year</th>
+                <th>Principal Paid</th>
+                <th>Interest Paid</th>
+                <th>Remaining Balance</th>
+            </tr>
+    `;
+    schedule.forEach(item => {
+        tableHTML += `
+            <tr>
+                <td>${item.year}</td>
+                <td>$${item.principalPaid.toFixed(2)}</td>
+                <td>$${item.interestPaid.toFixed(2)}</td>
+                <td>$${item.balance.toFixed(2)}</td>
+            </tr>
+        `;
+    });
+    tableHTML += '</table>';
+    scheduleDiv.innerHTML = tableHTML;
+}
+</script>
+</body>
+</html>
